@@ -31,9 +31,15 @@ public final class Config {
         }
         
         try (var reader = Files.newBufferedReader(CONFIG_PATH)) {
-            DATA = GSON.fromJson(reader, ConfigData.class);
-        } catch (IOException e) {
-            VoxyWorldGenV2.LOGGER.error("failed to load config", e);
+            ConfigData loaded = GSON.fromJson(reader, ConfigData.class);
+            if (loaded == null) {
+                throw new IOException("config file was empty or invalid");
+            }
+            DATA = loaded;
+        } catch (Exception e) {
+            VoxyWorldGenV2.LOGGER.error("failed to load config, restoring defaults", e);
+            DATA = new ConfigData();
+            save();
         }
     }
     

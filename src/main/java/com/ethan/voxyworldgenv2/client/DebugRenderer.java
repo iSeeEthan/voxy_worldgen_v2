@@ -65,6 +65,7 @@ public final class DebugRenderer {
             lineList.add("§7completed: §a" + formatNumber(stats.getCompleted()));
             lineList.add("§7skipped: §f" + formatNumber(stats.getSkipped()));
             lineList.add("§7remaining: §e" + formatNumber(remaining) + " §8(" + eta + ")");
+            lineList.add("§7queue: §b" + manager.getQueueSize() + " §8/ " + com.ethan.voxyworldgenv2.core.Config.DATA.maxQueueSize);
             lineList.add("§7active: §b" + manager.getActiveTaskCount());
             lineList.add("§7rate: §f" + String.format("%.1f", rate) + " c/s");
             lineList.add("§7voxy: " + (VoxyIntegration.isVoxyAvailable() ? "§aenabled" : "§cdisabled"));
