@@ -173,7 +173,7 @@ public final class ChunkGenerationManager {
                     continue;
                 }
 
-                if (getQueueSize() >= Config.DATA.maxQueueSize) {
+                if (getQueueSize() >= getConfiguredMaxQueueSize()) {
                     Thread.sleep(100);
                     continue;
                 }
@@ -273,7 +273,7 @@ public final class ChunkGenerationManager {
                 for (ChunkPos pos : preFiltered) {
                     if (!workerRunning.get()) break;
 
-                    if (getQueueSize() >= Config.DATA.maxQueueSize) {
+                    if (getQueueSize() >= getConfiguredMaxQueueSize()) {
                         break;
                     }
                     
@@ -588,6 +588,7 @@ public final class ChunkGenerationManager {
     }
     public boolean isThrottled() { return tpsMonitor.isThrottled(); }
     public int getQueueSize() { return activeTaskCount.get() + pendingTicketOpCount.get(); }
+    public int getConfiguredMaxQueueSize() { return Math.max(1, Config.DATA.maxQueueSize); }
     
     public void setPauseCheck(java.util.function.BooleanSupplier check) {
         this.pauseCheck = check;
