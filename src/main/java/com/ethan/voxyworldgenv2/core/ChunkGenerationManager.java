@@ -59,6 +59,7 @@ public final class ChunkGenerationManager {
     
     // global state
     private final AtomicInteger activeTaskCount = new AtomicInteger(0);
+    private final AtomicInteger pendingTicketOpCount = new AtomicInteger(0);
     private final GenerationStats stats = new GenerationStats();
     private final AtomicBoolean running = new AtomicBoolean(false);
     private final AtomicBoolean configReloadScheduled = new AtomicBoolean(false);
@@ -123,6 +124,7 @@ public final class ChunkGenerationManager {
         
         dimensionStates.clear();
         pendingTicketOps.clear();
+        pendingTicketOpCount.set(0);
         server = null;
         stats.reset();
         activeTaskCount.set(0);
@@ -168,6 +170,11 @@ public final class ChunkGenerationManager {
 
                 if (tpsMonitor.isThrottled() || pauseCheck.getAsBoolean()) {
                     Thread.sleep(500);
+                    continue;
+                }
+
+                if (getQueueSize() >= getConfiguredMaxQueueSize()) {
+                    Thread.sleep(100);
                     continue;
                 }
                 
@@ -265,6 +272,10 @@ public final class ChunkGenerationManager {
                 int processedCount = 0;
                 for (ChunkPos pos : preFiltered) {
                     if (!workerRunning.get()) break;
+
+                    if (getQueueSize() >= getConfiguredMaxQueueSize()) {
+                        break;
+                    }
                     
                     boolean acquired = false;
                     try {
@@ -493,6 +504,7 @@ public final class ChunkGenerationManager {
         TicketOp op;
         java.util.Set<ServerLevel> modifiedLevels = new java.util.HashSet<>();
         while ((op = pendingTicketOps.poll()) != null) {
+            pendingTicketOpCount.updateAndGet(v -> Math.max(0, v - 1));
             ServerChunkCache cache = op.level().getChunkSource();
             if (op.add()) {
                 cache.addTicketWithRadius(TicketType.FORCED, op.pos(), 0);
@@ -508,10 +520,12 @@ public final class ChunkGenerationManager {
     
     private void queueTicketAdd(ServerLevel level, ChunkPos pos) {
         pendingTicketOps.add(new TicketOp(level, pos, true));
+        pendingTicketOpCount.incrementAndGet();
     }
     
     private void queueTicketRemove(ServerLevel level, ChunkPos pos) {
         pendingTicketOps.add(new TicketOp(level, pos, false));
+        pendingTicketOpCount.incrementAndGet();
     }
     
     private void cleanupTask(ServerLevel level, ChunkPos pos) {
@@ -573,7 +587,8 @@ public final class ChunkGenerationManager {
         return state != null ? state.remainingInRadius.get() : 0; 
     }
     public boolean isThrottled() { return tpsMonitor.isThrottled(); }
-    public int getQueueSize() { return 0; }
+    public int getQueueSize() { return activeTaskCount.get() + pendingTicketOpCount.get(); }
+    public int getConfiguredMaxQueueSize() { return Math.max(1, Config.DATA.maxQueueSize); }
     
     public void setPauseCheck(java.util.function.BooleanSupplier check) {
         this.pauseCheck = check;
