@@ -15,7 +15,7 @@ public final class Config {
     private static final Path CONFIG_PATH = FabricLoader.getInstance().getConfigDir().resolve("voxyworldgenv2.json");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     
-    public static ConfigData DATA = new ConfigData();
+    public static volatile ConfigData DATA = new ConfigData();
     
     public static void load() {
         if (!Files.exists(CONFIG_PATH)) {
