@@ -216,7 +216,7 @@ public final class ChunkGenerationManager {
                         DimensionState ds = getOrSetupState((ServerLevel) player.level());
                         int radius = ds.tellusActive ? Math.max(Config.DATA.generationRadius, 128) : Config.DATA.generationRadius;
                         List<ChunkPos> syncBatch = new ArrayList<>();
-                        ds.distanceGraph.collectCompletedInRange(player.chunkPosition(), radius, synced, syncBatch, 64);
+                        ds.distanceGraph.collectCompletedInRange(player.chunkPosition(), radius, synced, syncBatch, 32);
                         
                         if (!syncBatch.isEmpty()) {
                             workDispatched = true;
@@ -234,38 +234,48 @@ public final class ChunkGenerationManager {
                                 ServerPlayer p = server.getPlayerList().getPlayer(playerUUID);
                                 if (p != null) {
                                     for (ChunkPos syncPos : finalSyncBatch) {
-                                        LevelChunk chunk = level.getChunkSource().getChunk(syncPos.x, syncPos.z, false);
+                                        // loadOrGenerate is set to true, however chunks will not be generated, only loaded, because syncBatch only contains previously generated chunks
                                         
-                                        // if c == null the chunk is not loaded; the BlockUpdateMixin will
-                                        // handle syncing it when it gets loaded into memory later
-                                        if (chunk != null) {
+                                        var chunkFuture = level.getChunkSource().getChunkFuture(syncPos.x, syncPos.z, ChunkStatus.FULL, true);
+                                        
+                                        chunkFuture.whenCompleteAsync((result, throwable) -> {
+                                            if (throwable == null && result != null && result.isSuccess() && result.orElse(null) instanceof LevelChunk chunk) {
+                                                if (chunk != null) {
 
-                                            // Find other players that needs this chunk
-                                            ArrayList<ServerPlayer> playersToSendTo = new ArrayList<>();
-                                            for (UUID otherPlayerUUID : unsyncedPlayersUUIDs) {
-                                                ServerPlayer otherPlayer = server.getPlayerList().getPlayer(otherPlayerUUID);
-                                                if (otherPlayer != null) {
-                                                    if (PlayerTracker.getInstance().getSyncedChunks(otherPlayer.getUUID()).contains(syncPos.toLong()) == false) {
-                                                        playersToSendTo.add(otherPlayer);
+                                                    // Find other players that need this chunk to avoid loading the same chunk from disk multiple times.
+                                                    ArrayList<ServerPlayer> playersToSendTo = new ArrayList<>();
+                                                    for (UUID otherPlayerUUID : unsyncedPlayersUUIDs) {
+                                                        ServerPlayer otherPlayer = server.getPlayerList().getPlayer(otherPlayerUUID);
+                                                        if (otherPlayer != null) {
+                                                            if (PlayerTracker.getInstance().getSyncedChunks(otherPlayer.getUUID()).contains(syncPos.toLong()) == false) {
+                                                                playersToSendTo.add(otherPlayer);
 
-                                                        // add to player's synced chunks
-                                                        PlayerTracker.getInstance().getSyncedChunks(otherPlayer.getUUID()).add(syncPos.toLong());
+                                                                // add to player's synced chunks
+                                                                PlayerTracker.getInstance().getSyncedChunks(otherPlayer.getUUID()).add(syncPos.toLong());
+                                                            }
+                                                        }
+                                                    }
+                                                    
+                                                    for (ServerPlayer playerToSendTo : playersToSendTo) {
+                                                        com.ethan.voxyworldgenv2.network.NetworkHandler.sendLODData(playerToSendTo, chunk);
                                                     }
                                                 }
+                                            } else {
+                                                VoxyWorldGenV2.LOGGER.error("failed to load chunk", throwable);
                                             }
-                                            
-                                            for (ServerPlayer playerToSendTo : playersToSendTo) {
-                                                com.ethan.voxyworldgenv2.network.NetworkHandler.sendLODData(playerToSendTo, chunk);
-                                            }
-
-                                            
-                                        }
+                                        });
                                     }
                                 }
+
+                                // This will unload the chunks from the chunck cache after they've been sent, to avoid keeping chunks in memory that are out of the server's view distance
+                                ((ServerChunkCacheMixin) level.getChunkSource()).invokeRunDistanceManagerUpdates();
                             });
                             
                             //break; // processed one player, break to skip sleep
                         }
+                        // Syncing is very disk heavy, so a delay is here to prevent overwhelming the server.
+                        // TODO: add a config option to set a maximum chunks per second sent, so that sync speed is user defined and can be adjusted based on hardware.
+                        Thread.sleep(100);
                     }
                     
                     if (workDispatched) {
