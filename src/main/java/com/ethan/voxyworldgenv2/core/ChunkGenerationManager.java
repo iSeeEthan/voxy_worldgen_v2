@@ -7,14 +7,19 @@ import com.ethan.voxyworldgenv2.mixin.MinecraftServerAccess;
 
 import com.ethan.voxyworldgenv2.mixin.ServerChunkCacheMixin;
 import com.ethan.voxyworldgenv2.stats.GenerationStats;
+
+import net.minecraft.client.multiplayer.chat.LoggedChatMessage.Player;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ChunkResult;
 import net.minecraft.server.level.ServerChunkCache;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.Ticket;
 import net.minecraft.server.level.TicketType;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.status.ChunkStatus;
 
@@ -33,6 +38,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -194,6 +200,15 @@ public final class ChunkGenerationManager {
                 if (batch == null) {
                     // if no generation work, try to catch up on syncing for any player
                     boolean workDispatched = false;
+
+                    ArrayList<UUID> unsyncedPlayersUUIDs = new ArrayList<>();
+
+                    for (ServerPlayer player : players) {
+                        if (PlayerTracker.getInstance().getSyncedChunks(player.getUUID()) == null) {
+                            unsyncedPlayersUUIDs.add(player.getUUID());
+                        }
+                    }
+                    
                     for (ServerPlayer player : players) {
                         var synced = PlayerTracker.getInstance().getSyncedChunks(player.getUUID());
                         if (synced == null) continue;
@@ -201,33 +216,66 @@ public final class ChunkGenerationManager {
                         DimensionState ds = getOrSetupState((ServerLevel) player.level());
                         int radius = ds.tellusActive ? Math.max(Config.DATA.generationRadius, 128) : Config.DATA.generationRadius;
                         List<ChunkPos> syncBatch = new ArrayList<>();
-                        ds.distanceGraph.collectCompletedInRange(player.chunkPosition(), radius, synced, syncBatch, 64);
+                        ds.distanceGraph.collectCompletedInRange(player.chunkPosition(), radius, synced, syncBatch, 32);
                         
                         if (!syncBatch.isEmpty()) {
                             workDispatched = true;
                             final List<ChunkPos> finalSyncBatch = new ArrayList<>(syncBatch);
                             final ServerLevel level = ds.level;
+
                             final UUID playerUUID = player.getUUID();
                             // mark all as synced now so we don't retry unloaded chunks in a tight loop;
                             // the block update mixin will re-sync them when they load naturally
                             for (ChunkPos syncPos : finalSyncBatch) {
                                 synced.add(syncPos.toLong());
                             }
+                            
                             server.execute(() -> {
                                 ServerPlayer p = server.getPlayerList().getPlayer(playerUUID);
                                 if (p != null) {
                                     for (ChunkPos syncPos : finalSyncBatch) {
-                                        LevelChunk c = level.getChunkSource().getChunk(syncPos.x, syncPos.z, false);
-                                        if (c != null) {
-                                            com.ethan.voxyworldgenv2.network.NetworkHandler.sendLODData(p, c);
-                                        }
-                                        // if c == null the chunk is not loaded; the BlockUpdateMixin will
-                                        // handle syncing it when it gets loaded into memory later
+                                        // loadOrGenerate is set to true, however chunks will not be generated, only loaded, because syncBatch only contains previously generated chunks
+                                        
+                                        var chunkFuture = level.getChunkSource().getChunkFuture(syncPos.x, syncPos.z, ChunkStatus.FULL, true);
+                                        
+                                        chunkFuture.whenCompleteAsync((result, throwable) -> {
+                                            if (throwable == null && result != null && result.isSuccess() && result.orElse(null) instanceof LevelChunk chunk) {
+                                                if (chunk != null) {
+
+                                                    // Find other players that need this chunk to avoid loading the same chunk from disk multiple times.
+                                                    ArrayList<ServerPlayer> playersToSendTo = new ArrayList<>();
+                                                    for (UUID otherPlayerUUID : unsyncedPlayersUUIDs) {
+                                                        ServerPlayer otherPlayer = server.getPlayerList().getPlayer(otherPlayerUUID);
+                                                        if (otherPlayer != null) {
+                                                            if (PlayerTracker.getInstance().getSyncedChunks(otherPlayer.getUUID()).contains(syncPos.toLong()) == false) {
+                                                                playersToSendTo.add(otherPlayer);
+
+                                                                // add to player's synced chunks
+                                                                PlayerTracker.getInstance().getSyncedChunks(otherPlayer.getUUID()).add(syncPos.toLong());
+                                                            }
+                                                        }
+                                                    }
+                                                    
+                                                    for (ServerPlayer playerToSendTo : playersToSendTo) {
+                                                        com.ethan.voxyworldgenv2.network.NetworkHandler.sendLODData(playerToSendTo, chunk);
+                                                    }
+                                                }
+                                            } else {
+                                                VoxyWorldGenV2.LOGGER.error("failed to load chunk", throwable);
+                                            }
+                                        });
                                     }
                                 }
+
+                                // This will unload the chunks from the chunck cache after they've been sent, to avoid keeping chunks in memory that are out of the server's view distance
+                                ((ServerChunkCacheMixin) level.getChunkSource()).invokeRunDistanceManagerUpdates();
                             });
-                            break; // processed one player, break to skip sleep
+                            
+                            //break; // processed one player, break to skip sleep
                         }
+                        // Syncing is very disk heavy, so a delay is here to prevent overwhelming the server.
+                        // TODO: add a config option to set a maximum chunks per second sent, so that sync speed is user defined and can be adjusted based on hardware.
+                        Thread.sleep(100);
                     }
                     
                     if (workDispatched) {
