@@ -13,7 +13,7 @@ This is a rewrite of my old Voxy World Gen mod, this mod is NOT a fork of the pa
 
 ## Project layout (unified multi-loader)
 
-One source tree builds both loaders, with no Architectury:
+One source tree builds both loaders, with no Architectury(for now might change in future):
 
 ```
 common/    shared game logic (loader-agnostic, compiled per-loader against each MC)
