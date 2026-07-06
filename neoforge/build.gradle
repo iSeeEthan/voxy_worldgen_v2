@@ -1,0 +1,84 @@
+plugins {
+    id 'net.neoforged.moddev' version '2.0.141'
+    id 'maven-publish'
+}
+
+base {
+    archivesName = "${rootProject.mod_name}-neoforge-${rootProject.neo_minecraft_version}"
+}
+
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(21)
+    withSourcesJar()
+}
+
+// Compile the shared game logic from ../common against NeoForge's Minecraft.
+sourceSets.main.java.srcDir "${rootDir}/common/src/main/java"
+
+neoForge {
+    version = rootProject.neo_version
+
+    parchment {
+        minecraftVersion = rootProject.parchment_minecraft_version
+        mappingsVersion = rootProject.parchment_mappings_version
+    }
+
+    runs {
+        client {
+            client()
+        }
+        server {
+            server()
+        }
+    }
+
+    mods {
+        voxyworldgenv2 {
+            sourceSet sourceSets.main
+        }
+    }
+}
+
+repositories {
+    maven { url 'https://maven.shedaniel.me/' }       // Cloth Config
+    maven { url 'https://maven.neoforged.net/releases' }
+}
+
+dependencies {
+    // Cloth Config (NeoForge) provides the in-game config screen
+    implementation "me.shedaniel.cloth:cloth-config-neoforge:${rootProject.neo_cloth_config_version}"
+
+    // fastutil is shipped with Minecraft, declare it for compile-time only
+    compileOnly "it.unimi.dsi:fastutil:8.5.12"
+}
+
+// expand placeholders in neoforge.mods.toml
+tasks.named('processResources', ProcessResources).configure {
+    var replaceProperties = [
+            minecraft_version      : rootProject.neo_minecraft_version,
+            minecraft_version_range: rootProject.neo_minecraft_version_range,
+            neo_version            : rootProject.neo_version,
+            neo_version_range      : rootProject.neo_version_range,
+            loader_version_range   : rootProject.neo_loader_version_range,
+            mod_id                 : rootProject.mod_id,
+            mod_name               : rootProject.mod_name,
+            mod_author             : rootProject.mod_author,
+            version                : rootProject.mod_version,
+    ]
+    inputs.properties replaceProperties
+
+    filesMatching(['META-INF/neoforge.mods.toml']) {
+        expand replaceProperties
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    it.options.encoding = 'UTF-8'
+    it.options.release = 21
+}
+
+jar {
+    from("${rootDir}/LICENSE") {
+        rename { "${it}_${rootProject.mod_name}" }
+    }
+}

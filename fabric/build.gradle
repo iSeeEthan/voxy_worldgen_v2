@@ -1,0 +1,69 @@
+plugins {
+    id 'net.fabricmc.fabric-loom' version "${loom_version}"
+    id 'maven-publish'
+}
+
+base {
+    archivesName = "${rootProject.mod_name}-fabric-${rootProject.fabric_minecraft_version}"
+}
+
+// Compile the shared game logic from ../common against Fabric's Minecraft, into the main
+// (common-environment) source set. The split client source set holds client-only classes.
+sourceSets.main.java.srcDir "${rootDir}/common/src/main/java"
+
+loom {
+    splitEnvironmentSourceSets()
+
+    mods {
+        "voxyworldgenv2" {
+            sourceSet sourceSets.main
+            sourceSet sourceSets.client
+        }
+    }
+}
+
+repositories {
+    maven { url 'https://maven.shedaniel.me/' }
+    maven { url 'https://maven.terraformersmc.com/' }
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${rootProject.fabric_minecraft_version}"
+    implementation "net.fabricmc:fabric-loader:${rootProject.fabric_loader_version}"
+    implementation "net.fabricmc.fabric-api:fabric-api:${rootProject.fabric_api_version}"
+
+    implementation("me.shedaniel.cloth:cloth-config-fabric:${rootProject.fabric_cloth_config_version}") {
+        exclude(group: "net.fabricmc.fabric-api")
+    }
+    implementation "com.terraformersmc:modmenu:${rootProject.mod_menu_version}"
+}
+
+processResources {
+    inputs.property "version", rootProject.mod_version
+    inputs.property "minecraft_version", rootProject.fabric_minecraft_version
+    inputs.property "loader_version", rootProject.fabric_loader_version
+
+    filesMatching("fabric.mod.json") {
+        expand "version": rootProject.mod_version,
+                "minecraft_version": rootProject.fabric_minecraft_version,
+                "loader_version": rootProject.fabric_loader_version
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    it.options.encoding = "UTF-8"
+    it.options.release = 25
+}
+
+java {
+    // Use a Java 25 toolchain so the compile targets 25 regardless of which JDK launched Gradle
+    // (the foojay resolver in settings.gradle locates/downloads it if needed).
+    toolchain.languageVersion = JavaLanguageVersion.of(25)
+    withSourcesJar()
+}
+
+jar {
+    from("${rootDir}/LICENSE") {
+        rename { "${it}_${rootProject.mod_name}" }
+    }
+}

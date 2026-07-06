@@ -1,0 +1,47 @@
+Copyright (c) 2026 iSeeEthan
+
+TERMS AND CONDITIONS
+
+1. VIEWING AND CONTRIBUTIONS
+   You are permitted to:
+   - View and study the source code
+   - Submit contributions (pull requests) to the original repository
+   - Fork the repository solely for the purpose of submitting contributions
+
+2. USAGE TERMS
+   You are permitted to:
+   - Download and install this mod for personal use
+   - Run this mod together with other mods for personal gameplay
+   - Include this mod in a personal, private modpack that is not distributed to others
+   - Reference this mod by its official Modrinth project ID in a public modpack, provided
+     the modpack does not bundle the .jar directly and downloads it from the official
+     Modrinth listing on behalf of users
+   - Use this mod for the purpose of contributing to this project (see Section 4)
+
+3. RESTRICTIONS
+   You are NOT permitted to:
+   - Copy, modify, or distribute this software outside of contributions
+   - Use this software or any portion of it in your own projects
+   - Bundle or redistribute the compiled .jar directly in any modpack, archive, or
+     third-party host (the .jar must always be sourced from the official Modrinth listing)
+   - Sell or sublicense this software
+   - Create derivative works based on this software
+   - Rehost or mirror the compiled .jar or source code on any platform
+
+4. CONTRIBUTIONS
+   By submitting a contribution to this project, you:
+   - Grant the copyright holder a perpetual, irrevocable license to use,
+     modify, and distribute your contribution as part of this project
+   - Confirm that your contribution is your original work
+
+5. NO WARRANTY
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+   EXPRESS OR IMPLIED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE
+   FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY ARISING FROM THE USE OF
+   THIS SOFTWARE.
+
+6. TERMINATION
+   Your rights under this license terminate automatically if you violate
+   any of these terms.
+
+For permissions beyond the scope of this license, contact the copyright holder.

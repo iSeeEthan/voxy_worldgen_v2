@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "id": "voxyworldgenv2",
+  "version": "${version}",
+  "name": "Voxy World Gen V2",
+  "description": "Optimized passive chunk generation with Voxy integration",
+  "authors": [
+    "iSeeEthan"
+  ],
+  "contact": {},
+  "license": "CUSTOM",
+  "icon": "logo.png",
+  "environment": "*",
+  "mixins": [
+    "voxyworldgenv2.mixins.json"
+  ],
+  "entrypoints": {
+    "main": [
+      "com.ethan.voxyworldgenv2.VoxyWorldGenV2Fabric"
+    ],
+    "client": [
+      "com.ethan.voxyworldgenv2.VoxyWorldGenV2Client"
+    ],
+    "modmenu": [
+      "com.ethan.voxyworldgenv2.integration.ModMenuIntegration"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.19.3",
+    "minecraft": ">=26.2 <26.3",
+    "java": ">=25",
+    "fabric-api": "*"
+  },
+  "suggests": {
+    "voxy": "*"
+  }
+}

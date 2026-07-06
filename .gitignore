@@ -1,0 +1,37 @@
+# gradle
+.gradle/
+build/
+*/build/
+out/
+classes/
+
+# loom / moddev generated runtime + mappings
+run/
+*/run/
+.architectury-transformer/
+fabric/.fabric/
+**/.cache/
+*-sources.jar
+
+# eclipse
+*.launch
+.classpath
+.project
+.settings/
+bin/
+
+# intellij
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# vscode
+.vscode/
+
+# os
+.DS_Store
+Thumbs.db
+
+# misc
+*.log

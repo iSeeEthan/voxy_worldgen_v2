@@ -1,0 +1,20 @@
+{
+    "config.voxyworldgenv2.title": "Voxy World Gen V2 Config",
+    "config.voxyworldgenv2.category.general": "General Settings",
+    "config.voxyworldgenv2.category.client": "Client",
+    "config.voxyworldgenv2.category.server": "Server",
+    "config.voxyworldgenv2.server.readonly": "§7These are the server's settings. Only a server operator can change them.",
+    "config.voxyworldgenv2.option.enabled": "Mod Enabled",
+    "config.voxyworldgenv2.option.enabled.tooltip": "Completely enable or disable the mod's generation logic.",
+    "config.voxyworldgenv2.option.f3_stats": "Show F3 Menu Stats",
+    "config.voxyworldgenv2.option.f3_stats.tooltip": "Show generation statistics in the F3 debug menu.",
+    "config.voxyworldgenv2.option.radius": "Generation Radius",
+    "config.voxyworldgenv2.option.radius.tooltip": "The radius (in chunks) around players to generate.",
+    "config.voxyworldgenv2.option.update_interval": "Scanner Interval (Ticks)",
+    "config.voxyworldgenv2.option.update_interval.tooltip": "How often to scan for new ungenerated chunks.",
+    "config.voxyworldgenv2.option.max_queue": "Max Queue Size",
+    "config.voxyworldgenv2.option.max_queue.tooltip": "Maximum number of chunks to keep in the pending queue.",
+    "config.voxyworldgenv2.option.max_active": "Max Parallel Tasks",
+    "config.voxyworldgenv2.option.max_active.tooltip": "Maximum number of chunks generating simultaneously.",
+    "debug.voxyworldgenv2.skipped": "skipped"
+}

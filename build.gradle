@@ -1,0 +1,21 @@
+// Root build script. Shared configuration for the loader subprojects (:fabric, :neoforge).
+// The shared game logic lives in ../common/src/main/java and is pulled into each loader's
+// main source set (see each module's build.gradle), so there is no 'common' subproject here.
+
+subprojects {
+    apply plugin: 'java'
+
+    version = rootProject.mod_version
+    group = rootProject.group
+
+    repositories {
+        mavenCentral()
+        maven { url 'https://maven.shedaniel.me/' }        // Cloth Config
+        maven { url 'https://maven.terraformersmc.com/' }  // Mod Menu (Fabric)
+        maven { url 'https://maven.neoforged.net/releases' }
+    }
+
+    tasks.withType(JavaCompile).configureEach {
+        it.options.encoding = 'UTF-8'
+    }
+}
