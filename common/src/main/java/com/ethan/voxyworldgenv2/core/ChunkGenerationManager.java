@@ -325,6 +325,7 @@ public final class ChunkGenerationManager {
         // otherwise this spins forever once dispatchBatch stops sending
         while (dispatched < budget && activePlayers > 0
                 && workerRunning.get() && !Thread.currentThread().isInterrupted()) {
+            int dispatchedBeforePass = dispatched;
             for (int i = 0; i < n && dispatched < budget; i++) {
                 if (exhausted[i] || remainingSlice[i] <= 0) continue;
 
@@ -349,6 +350,7 @@ public final class ChunkGenerationManager {
                     activePlayers--;
                 }
             }
+            if (dispatched == dispatchedBeforePass) break; // break loop if last pass did nothing
         }
         return dispatched > 0;
     }
