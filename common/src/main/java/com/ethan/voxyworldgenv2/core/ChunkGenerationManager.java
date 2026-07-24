@@ -321,8 +321,10 @@ public final class ChunkGenerationManager {
         java.util.Arrays.fill(remainingSlice, perPlayerCap);
         int activePlayers = n;
 
-        // cycle until budget spent or nobody has work
-        while (dispatched < budget && activePlayers > 0) {
+        // cycle until budget spent or nobody has work. also bail on shutdown,
+        // otherwise this spins forever once dispatchBatch stops sending
+        while (dispatched < budget && activePlayers > 0
+                && workerRunning.get() && !Thread.currentThread().isInterrupted()) {
             for (int i = 0; i < n && dispatched < budget; i++) {
                 if (exhausted[i] || remainingSlice[i] <= 0) continue;
 
