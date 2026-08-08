@@ -121,7 +121,7 @@ public final class ChunkGenerationManager {
         sessionId.incrementAndGet();
         this.server = server;
         this.running.set(true);
-        this.pauseCheck = () -> false;
+        //this.pauseCheck = () -> false;
         Config.load();
         this.throttle = new Semaphore(Config.DATA.maxActiveTasks);
         startWorker();
