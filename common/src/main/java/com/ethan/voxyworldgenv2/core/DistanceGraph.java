@@ -106,6 +106,16 @@ public class DistanceGraph {
             WorkItem item = queue.poll();
             if (item.node != null && item.node.isFull()) continue;
 
+            // region order: a level 1 node is 8x8 batches = 32x32 chunks, one region file. finish
+            // the nearest one row by row before the next, like chunky's region pattern. a chunk needs
+            // its neighbours out to 8 chunks loaded (structure starts), so jumping around a ring
+            // reloads finished chunks from disk again and again (~11 per new chunk vs ~0.4 this way)
+            if (item.level == 1) {
+                List<ChunkPos> batch = regionBatch(item, cbx, cbz, rb, ccx, ccz, radiusSq, trackedBatches);
+                if (batch != null) return batch;
+                continue;
+            }
+
             if (item.level == 0) {
                 long key = Services.CHUNK_POS.asLong(item.x, item.z);
                 if (trackedBatches.add(key)) {
@@ -148,6 +158,44 @@ public class DistanceGraph {
                     queue.add(new WorkItem(childNode, childLevel, cx, cz, dSq));
                 }
             }
+        }
+        return null;
+    }
+
+    // the first batch of a region node, row by row, that isn't done or in flight and has a chunk in range
+    private List<ChunkPos> regionBatch(WorkItem item, int cbx, int cbz, int rb, int ccx, int ccz, long radiusSq, Set<Long> trackedBatches) {
+        for (int i = 0; i < 64; i++) {
+            if (item.node != null) {
+                if ((item.node.fullMask & (1L << i)) != 0) continue;
+                Object child = item.node.children.get(i);
+                if (child instanceof Integer mask && mask == 0xFFFF) continue;
+            }
+
+            int bx = (item.x << 3) + (i & 7);
+            int bz = (item.z << 3) + (i >> 3);
+            if (getDistSq(bx, bz, 1, cbx, cbz) > (double) rb * rb) continue;
+
+            long key = Services.CHUNK_POS.asLong(bx, bz);
+            if (!trackedBatches.add(key)) continue;
+
+            List<ChunkPos> batch = new ArrayList<>(16);
+            for (int lz = 0; lz < 4; lz++) {
+                for (int lx = 0; lx < 4; lx++) {
+                    int chunkX = (bx << 2) + lx;
+                    int chunkZ = (bz << 2) + lz;
+                    long dx = chunkX - ccx;
+                    long dz = chunkZ - ccz;
+                    if (dx * dx + dz * dz <= radiusSq) {
+                        batch.add(new ChunkPos(chunkX, chunkZ));
+                    }
+                }
+            }
+
+            if (batch.isEmpty()) {
+                trackedBatches.remove(key);
+                continue;
+            }
+            return batch;
         }
         return null;
     }
