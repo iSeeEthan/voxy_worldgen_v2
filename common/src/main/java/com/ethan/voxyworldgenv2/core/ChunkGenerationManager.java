@@ -661,6 +661,10 @@ public final class ChunkGenerationManager {
     private void releaseAllTickets() {
         // drop queued ops first so we don't re-add a ticket we're about to remove
         pendingTicketOps.clear();
+        // lingering tickets are still in appliedTickets, released below with the rest
+        synchronized (lingering) {
+            lingering.clear();
+        }
 
         for (var entry : appliedTickets.entrySet()) {
             ServerLevel level = entry.getKey();
@@ -687,8 +691,24 @@ public final class ChunkGenerationManager {
         pendingTicketOps.add(new TicketOp(level, pos, false));
     }
     
+    // finished chunks keep their ticket a little longer. a chunk needs its neighbours out to 8 chunks
+    // loaded (structure starts), the next rows of the region need the ones just finished, and with the
+    // ticket gone at once they unload and get read back from disk (~4 per new chunk in region order).
+    // how many: Config keptTickets (512: ~2 rows of batches across a region plus margin)
+    private final java.util.ArrayDeque<TicketOp> lingering = new java.util.ArrayDeque<>();
+
+    private void lingerTicket(ServerLevel level, ChunkPos pos) {
+        synchronized (lingering) {
+            lingering.addLast(new TicketOp(level, pos, false));
+            while (lingering.size() > Math.max(0, Config.DATA.keptTickets)) {
+                TicketOp oldest = lingering.pollFirst();
+                queueTicketRemove(oldest.level(), oldest.pos());
+            }
+        }
+    }
+
     private void cleanupTask(ServerLevel level, ChunkPos pos) {
-        queueTicketRemove(level, pos);
+        lingerTicket(level, pos);
         // old emptyTicks reset is gone, that field isn't here and the pause check covers it
         DimensionState state = dimensionStates.get(level.dimension());
         if (state != null) completeTask(state, pos);

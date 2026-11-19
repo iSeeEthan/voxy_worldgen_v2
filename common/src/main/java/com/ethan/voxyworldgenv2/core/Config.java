@@ -53,6 +53,10 @@ public final class Config {
         public int update_interval = 20; // legacy field for compat
         public int maxQueueSize = 20000;
         public int maxActiveTasks = 20;
+        // finished chunks that keep their ticket a while (the oldest is released past this many), so the next
+        // rows of a region find their neighbours still loaded instead of reading them back from disk. ~200 kb
+        // each at most, most already loaded as neighbours. 0 releases them at once (the old behaviour)
+        public int keptTickets = 512;
 
         // client side, local to each player
         public boolean showF3MenuStats = true;
